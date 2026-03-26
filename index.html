@@ -44,7 +44,8 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   user-select: none;
 }
 
@@ -182,7 +183,7 @@ body {
 }
 
 /* ========== GAME SCREEN ========== */
-#game-screen { gap: 0; height: 100vh; justify-content: space-between; padding: 12px 20px; }
+#game-screen { gap: 0; min-height: 100vh; justify-content: space-between; padding: 12px 20px; }
 .game-header {
   display: flex;
   justify-content: space-between;
@@ -572,7 +573,7 @@ body {
 const ZONES = [
   {
     id: 0, name: 'The Meadow', emoji: '🌿', keys: ['a','s','d','f'],
-    words: ['a','s','d','f','as','ad','da','fa','sad','dad','fad','add','ads','dads','fads','adds','sass','aff','das'],
+    words: ['a','s','d','f','as','ad','da','fa','sad','dad','fad','add','ads','dads','fads','adds','sass','ff','dd','ss','af'],
     creatures: [
       { name: 'Butterfly', emoji: '🦋' },
       { name: 'Rabbit', emoji: '🐇' },
@@ -584,13 +585,13 @@ const ZONES = [
   },
   {
     id: 1, name: 'The Lake', emoji: '🏞️', keys: ['j','k','l'],
-    words: ['j','k','l','jk','lk','fl','sl','ask','all','fall','lad','lass','flask','skull','dull','fall','tall','shall','salad','staff','lads','daffodil','halls','falls'],
+    words: ['j','k','l','jk','lk','fl','sl','ask','all','fall','lad','lass','flask','skull','dull','tall','shall','salad','staff','lads','halls','falls','daffodil','klad'],
     creatures: [
       { name: 'Duck', emoji: '🦆' },
       { name: 'Fish', emoji: '🐟' },
       { name: 'Turtle', emoji: '🐢' },
-      { name: 'Dragonfly', emoji: '🪰' },
-      { name: 'Heron', emoji: '🦩' },
+      { name: 'Crab', emoji: '🦀' },
+      { name: 'Heron', emoji: '🪿' },
       { name: 'Otter', emoji: '🦦' }
     ]
   },
@@ -623,7 +624,7 @@ const ZONES = [
     words: ['Hello','Joel','Friday','March','April','Quest','Level 5','Room 42','High 5','Call 911','Code 7','Page 3','Zone 6','Top 10','Score 99','Win 100','Item 28','Rank 1','Gate 4','Step 12'],
     creatures: [
       { name: 'Goat', emoji: '🐐' },
-      { name: 'Hawk', emoji: '🦅' },
+      { name: 'Hawk', emoji: '🪶' },
       { name: 'Snow Leopard', emoji: '🐆' },
       { name: 'Yak', emoji: '🦬' },
       { name: 'Marmot', emoji: '🦫' },
@@ -756,6 +757,20 @@ function loadGame() {
     if (saved) {
       const parsed = JSON.parse(saved);
       gameState = { ...JSON.parse(JSON.stringify(DEFAULT_STATE)), ...parsed };
+      // Validate creaturesCollected shape
+      if (!Array.isArray(gameState.creaturesCollected) || gameState.creaturesCollected.length !== 6) {
+        gameState.creaturesCollected = DEFAULT_STATE.creaturesCollected.map(r => [...r]);
+      } else {
+        for (let i = 0; i < 6; i++) {
+          if (!Array.isArray(gameState.creaturesCollected[i]) || gameState.creaturesCollected[i].length !== 6) {
+            gameState.creaturesCollected[i] = [...DEFAULT_STATE.creaturesCollected[i]];
+          }
+        }
+      }
+      // Validate arrays
+      if (!Array.isArray(gameState.zonesUnlocked) || gameState.zonesUnlocked.length !== 6) {
+        gameState.zonesUnlocked = [...DEFAULT_STATE.zonesUnlocked];
+      }
       return true;
     }
   } catch(e) {
@@ -817,10 +832,11 @@ function bindTitleKey() {
   titleKeyBound = true;
   document.addEventListener('keydown', function titleHandler(e) {
     if (document.getElementById('title-screen').classList.contains('active')) {
-      if (e.key === 'Escape' || e.key === 'Tab' || e.key === 'Meta' || e.key === 'Alt' || e.key === 'Control') return;
-      e.preventDefault();
-      const hasSave = !!localStorage.getItem('typing-quest-save');
-      startGame(hasSave);
+      if (/^[a-zA-Z0-9 ]$/.test(e.key) || e.key === 'Enter') {
+        e.preventDefault();
+        const hasSave = !!localStorage.getItem('typing-quest-save');
+        startGame(hasSave);
+      }
     }
   });
 }
@@ -990,9 +1006,10 @@ function highlightKey() {
   const keyEl = document.querySelector(`.key[data-key="${expectedChar}"]`);
   if (keyEl) keyEl.classList.add('highlight');
 
-  // Highlight shift if needed
+  // Highlight shift if the expected character is uppercase
   const actualChar = roundState.currentWord[roundState.currentCharIndex];
-  if (actualChar !== actualChar.toLowerCase() || /[0-9]/.test(actualChar) === false && actualChar === actualChar.toUpperCase() && actualChar !== actualChar.toLowerCase()) {
+  const needsShift = actualChar !== actualChar.toLowerCase();
+  if (needsShift) {
     const shiftEl = document.querySelector('.key[data-key="shift"]');
     if (shiftEl) shiftEl.classList.add('highlight');
   }
@@ -1070,7 +1087,8 @@ function handleCorrectKey(key) {
         document.getElementById('message-area').className = 'message-area';
 
         saveGame();
-        setTimeout(() => loadEncounter(roundState.currentEncounter + 1), 900);
+        const nextIdx = roundState.currentEncounter + 1;
+        setTimeout(() => loadEncounter(nextIdx), 900);
         return;
       }
     }
@@ -1080,12 +1098,15 @@ function handleCorrectKey(key) {
       const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
       document.getElementById('message-area').textContent = msg;
     }
-    setTimeout(() => loadEncounter(roundState.currentEncounter + 1), 600);
+    const nextIdx = roundState.currentEncounter + 1;
+    setTimeout(() => loadEncounter(nextIdx), 600);
   } else {
     renderTarget();
     highlightKey();
   }
 }
+
+let shownBackspaceHint = false;
 
 function handleWrongKey(expected) {
   roundState.hasError = true;
@@ -1115,7 +1136,12 @@ function handleWrongKey(expected) {
   setTimeout(() => creatureEl.classList.remove('shake'), 300);
 
   // Show hint
-  document.getElementById('message-area').textContent = `Press ${expected === ' ' ? 'Space' : expected}`;
+  let hint = `Press ${expected === ' ' ? 'Space' : expected}`;
+  if (!shownBackspaceHint) {
+    hint += ' (no backspace -- just type the right key!)';
+    shownBackspaceHint = true;
+  }
+  document.getElementById('message-area').textContent = hint;
   document.getElementById('message-area').className = 'message-area error-msg';
 
   // Highlight correct key
@@ -1131,9 +1157,9 @@ function finishRound() {
 
   // Calculate stars
   let stars = 0;
-  if (accuracy >= 97) stars = 3;
-  else if (accuracy >= 90) stars = 2;
-  else if (accuracy >= 80) stars = 1;
+  if (accuracy >= 90) stars = 3;
+  else if (accuracy >= 75) stars = 2;
+  else if (accuracy >= 60) stars = 1;
 
   // Update best
   if (accuracy > gameState.zoneBestAccuracy[zoneId]) {
@@ -1145,7 +1171,7 @@ function finishRound() {
 
   // Unlock next zone
   let unlockedNew = false;
-  if (accuracy >= 80 && zoneId < 5 && !gameState.zonesUnlocked[zoneId + 1]) {
+  if (accuracy >= 60 && zoneId < 5 && !gameState.zonesUnlocked[zoneId + 1]) {
     gameState.zonesUnlocked[zoneId + 1] = true;
     unlockedNew = true;
   }
@@ -1183,12 +1209,12 @@ function finishRound() {
   const msgEl = document.getElementById('complete-message');
   if (unlockedNew) {
     msgEl.textContent = `New zone unlocked: ${ZONES[zoneId + 1].name}!`;
-  } else if (accuracy >= 97) {
+  } else if (accuracy >= 90) {
     msgEl.textContent = 'Perfect round! Amazing!';
-  } else if (accuracy >= 80) {
+  } else if (accuracy >= 60) {
     msgEl.textContent = 'Great work! Keep practicing for more stars!';
   } else {
-    msgEl.textContent = 'Keep practicing! You need 80% accuracy to unlock the next zone.';
+    msgEl.textContent = 'Keep practicing! You need 60% accuracy to unlock the next zone.';
   }
 
   // Next zone button
