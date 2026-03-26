@@ -126,6 +126,89 @@ body {
   50% { opacity: 1; }
 }
 
+/* ========== TUTORIAL ========== */
+#tutorial-screen {
+  text-align: center;
+  gap: 20px;
+}
+.tutorial-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.tutorial-instruction {
+  font-size: 1.3rem;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.5;
+}
+.tutorial-finger-name {
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.tutorial-progress {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+.tutorial-hands {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin: 10px 0;
+}
+.hand-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.hand-fingers {
+  display: flex;
+  gap: 6px;
+}
+.finger-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #000;
+  opacity: 0.3;
+  transition: all 0.3s;
+}
+.finger-dot.active {
+  opacity: 1;
+  transform: scale(1.2);
+  box-shadow: 0 0 12px currentColor;
+}
+.finger-dot.done {
+  opacity: 0.7;
+}
+.tutorial-key-prompt {
+  font-size: 2.5rem;
+  font-weight: 800;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tutorial-success {
+  color: var(--accent);
+  font-weight: 600;
+  min-height: 30px;
+}
+.tutorial-keyboard-container {
+  width: 100%;
+  max-width: 780px;
+  padding: 8px 0;
+}
+
 /* ========== ZONE MAP ========== */
 #zone-map { gap: 20px; }
 .map-title {
@@ -283,6 +366,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 2px;
+  flex-wrap: wrap;
 }
 .typing-target .char {
   display: inline-block;
@@ -313,19 +397,6 @@ body {
   transition: all 0.2s;
 }
 .message-area.error-msg { color: var(--error); }
-.keyboard-toggle {
-  position: absolute;
-  top: 12px;
-  right: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--bg-card-hover);
-  color: var(--text-dim);
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
-.keyboard-toggle:hover { border-color: var(--accent); }
 
 /* ========== VIRTUAL KEYBOARD ========== */
 .keyboard-container {
@@ -369,10 +440,13 @@ body {
   color: #fff !important;
   border-color: var(--error) !important;
 }
+.key.tutorial-home {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
 .key-space { width: 280px; }
 .key-shift { width: 90px; font-size: 0.75rem; }
 .key-wide { width: 72px; font-size: 0.7rem; }
-.finger-guide { font-size: 0.5rem; position: absolute; bottom: 2px; color: rgba(255,255,255,0.4); }
 
 /* ========== ZONE COMPLETE ========== */
 #zone-complete {
@@ -472,6 +546,8 @@ body {
   .key-space { width: 180px; }
   .key-shift { width: 60px; }
   .creature-emoji { font-size: 3rem; }
+  .tutorial-hands { gap: 20px; }
+  .finger-dot { width: 28px; height: 28px; font-size: 0.6rem; }
 }
 </style>
 </head>
@@ -487,6 +563,20 @@ body {
   </div>
   <div class="press-hint">Press any key to begin</div>
   <div class="save-notice" id="save-notice" style="display:none"></div>
+</div>
+
+<!-- ========== TUTORIAL ========== -->
+<div id="tutorial-screen" class="screen">
+  <div class="tutorial-title">Home Row Training</div>
+  <div class="tutorial-instruction" id="tutorial-instruction">
+    Place your fingers on the home row...
+  </div>
+  <div class="tutorial-hands" id="tutorial-hands"></div>
+  <div class="tutorial-key-prompt" id="tutorial-key-prompt"></div>
+  <div class="tutorial-success" id="tutorial-success"></div>
+  <div class="tutorial-progress" id="tutorial-progress"></div>
+  <div class="tutorial-keyboard-container" id="tutorial-keyboard"></div>
+  <button class="btn btn-secondary btn-small" style="margin-top:12px" onclick="skipTutorial()">Skip Tutorial</button>
 </div>
 
 <!-- ========== ZONE MAP ========== -->
@@ -581,11 +671,12 @@ const ZONES = [
       { name: 'Deer', emoji: '🦌' },
       { name: 'Ladybug', emoji: '🐞' },
       { name: 'Frog', emoji: '🐸' }
-    ]
+    ],
+    useCreatureNames: false
   },
   {
     id: 1, name: 'The Lake', emoji: '🏞️', keys: ['j','k','l'],
-    words: ['j','k','l','jk','lk','fl','sl','ask','all','fall','lad','lass','flask','skull','dull','tall','shall','salad','staff','lads','halls','falls','daffodil','klad'],
+    words: ['j','k','l','jk','lk','fl','sl','ask','all','fall','lad','lass','flask','skull','dull','tall','shall','salad','staff','lads','halls','falls','daffodil'],
     creatures: [
       { name: 'Duck', emoji: '🦆' },
       { name: 'Fish', emoji: '🐟' },
@@ -593,43 +684,50 @@ const ZONES = [
       { name: 'Crab', emoji: '🦀' },
       { name: 'Heron', emoji: '🪿' },
       { name: 'Otter', emoji: '🦦' }
-    ]
+    ],
+    useCreatureNames: false
   },
   {
     id: 2, name: 'The Forest', emoji: '🌲', keys: ['q','w','e','r','t','y','u','i','o','p'],
-    words: ['the','are','you','type','work','quite','power','world','your','write','tower','proud','quest','outer','fruit','quiet','quilt','reply','tulip','pilot','risky','youth','trout','poker','squid','equip','dirty','dusty','jolly','stork','stripe','would','query','rapid','tried'],
+    words: [],
     creatures: [
-      { name: 'Owl', emoji: '🦉' },
-      { name: 'Squirrel', emoji: '🐿️' },
-      { name: 'Bear', emoji: '🐻' },
-      { name: 'Wolf', emoji: '🐺' },
-      { name: 'Eagle', emoji: '🦅' },
-      { name: 'Hedgehog', emoji: '🦔' }
-    ]
+      { name: 'owl', emoji: '🦉' },
+      { name: 'squirrel', emoji: '🐿️' },
+      { name: 'wolf', emoji: '🐺' },
+      { name: 'eagle', emoji: '🦅' },
+      { name: 'turtle', emoji: '🐢' },
+      { name: 'parrot', emoji: '🦜' }
+    ],
+    extraWords: ['the','are','you','type','work','quite','power','world','your','write','tower','proud','quest','fruit','quiet','tulip','pilot','stork','stripe','would','rapid','tried'],
+    useCreatureNames: true
   },
   {
     id: 3, name: 'The Cave', emoji: '🕳️', keys: ['z','x','c','v','b','n','m'],
-    words: ['climb','above','frozen','mixed','brave','magic','next','zone','vixen','black','jumpy','exact','verb','crisp','bacon','cabin','numb','bench','cozy','inbox','dozen','waltz','boxer','vivid','novel','blink','clamp','thumb','ranch','oxen','haven','mango','blaze','crumb'],
+    words: [],
     creatures: [
-      { name: 'Bat', emoji: '🦇' },
-      { name: 'Spider', emoji: '🕷️' },
-      { name: 'Salamander', emoji: '🦎' },
-      { name: 'Crystal Moth', emoji: '🪻' },
-      { name: 'Mole', emoji: '🐀' },
-      { name: 'Glowworm', emoji: '🪱' }
-    ]
+      { name: 'bat', emoji: '🦇' },
+      { name: 'cobra', emoji: '🐍' },
+      { name: 'raven', emoji: '🐦‍⬛' },
+      { name: 'bison', emoji: '🦬' },
+      { name: 'mole', emoji: '🐀' },
+      { name: 'newt', emoji: '🦎' }
+    ],
+    extraWords: ['climb','above','frozen','mixed','brave','magic','next','zone','vixen','black','jumpy','exact','bacon','cabin','bench','cozy','dozen','boxer','vivid','novel','blink','thumb','crumb'],
+    useCreatureNames: true
   },
   {
     id: 4, name: 'The Mountain', emoji: '🏔️', keys: ['1','2','3','4','5','6','7','8','9','0'],
-    words: ['Hello','Joel','Friday','March','April','Quest','Level 5','Room 42','High 5','Call 911','Code 7','Page 3','Zone 6','Top 10','Score 99','Win 100','Item 28','Rank 1','Gate 4','Step 12'],
+    words: [],
     creatures: [
       { name: 'Goat', emoji: '🐐' },
       { name: 'Hawk', emoji: '🪶' },
-      { name: 'Snow Leopard', emoji: '🐆' },
+      { name: 'Puma', emoji: '🐆' },
       { name: 'Yak', emoji: '🦬' },
-      { name: 'Marmot', emoji: '🦫' },
+      { name: 'Crane', emoji: '🦩' },
       { name: 'Condor', emoji: '🪽' }
-    ]
+    ],
+    extraWords: ['Hello','Joel','Friday','March','April','Quest','Level 5','Room 42','High 5','Call 911','Code 7','Page 3','Zone 6','Top 10'],
+    useCreatureNames: true
   },
   {
     id: 5, name: 'The Summit', emoji: '⛰️', keys: [],
@@ -657,12 +755,25 @@ const ZONES = [
       { name: 'Pegasus', emoji: '🦄' },
       { name: 'Thunderbird', emoji: '⚡' },
       { name: 'Unicorn', emoji: '🌈' }
-    ]
+    ],
+    useCreatureNames: true
   }
 ];
 
+// Tutorial steps: finger name, key, finger color, hand side
+const TUTORIAL_STEPS = [
+  { finger: 'left pinky',  key: 'a', color: 'var(--finger-pinky-l)', hand: 'left',  dotIndex: 0 },
+  { finger: 'left ring finger',  key: 's', color: 'var(--finger-ring-l)',  hand: 'left',  dotIndex: 1 },
+  { finger: 'left middle finger', key: 'd', color: 'var(--finger-mid-l)',  hand: 'left',  dotIndex: 2 },
+  { finger: 'left index finger',  key: 'f', color: 'var(--finger-index-l)', hand: 'left',  dotIndex: 3 },
+  { finger: 'right index finger', key: 'j', color: 'var(--finger-index-r)', hand: 'right', dotIndex: 0 },
+  { finger: 'right middle finger',key: 'k', color: 'var(--finger-mid-r)',  hand: 'right', dotIndex: 1 },
+  { finger: 'right ring finger', key: 'l', color: 'var(--finger-ring-r)',  hand: 'right', dotIndex: 2 },
+];
+
+const FINGER_NAMES_SHORT = ['Pinky', 'Ring', 'Mid', 'Index'];
+
 // Keyboard layout with finger assignments
-// Fingers: lp=left pinky, lr=left ring, lm=left middle, li=left index, t=thumb, ri=right index, rm=right middle, rr=right ring, rp=right pinky
 const KEYBOARD_ROWS = [
   [
     {key:'1',finger:'lp'},{key:'2',finger:'lr'},{key:'3',finger:'lm'},{key:'4',finger:'li'},
@@ -718,7 +829,8 @@ const DEFAULT_STATE = {
   zoneStars: [0, 0, 0, 0, 0, 0],
   zoneBestAccuracy: [0, 0, 0, 0, 0, 0],
   creaturesCollected: Array(6).fill(null).map(() => Array(6).fill(false)),
-  showKeyboard: true
+  showKeyboard: true,
+  tutorialComplete: false
 };
 
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -739,6 +851,10 @@ let roundState = {
   creaturesThisRound: [],
   newCreatures: []
 };
+
+// Tutorial state
+let tutorialStep = 0;
+let tutorialActive = false;
 
 // ========== SAVE/LOAD ==========
 
@@ -767,7 +883,6 @@ function loadGame() {
           }
         }
       }
-      // Validate arrays
       if (!Array.isArray(gameState.zonesUnlocked) || gameState.zonesUnlocked.length !== 6) {
         gameState.zonesUnlocked = [...DEFAULT_STATE.zonesUnlocked];
       }
@@ -794,6 +909,7 @@ function checkSaveSupport() {
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
+  tutorialActive = (screenId === 'tutorial-screen');
 
   if (screenId === 'zone-map') renderZoneMap();
   if (screenId === 'collection-screen') renderCollection();
@@ -821,8 +937,14 @@ function startGame(continueGame) {
   if (!continueGame) {
     gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
     saveGame();
+    startTutorial();
+  } else {
+    if (!gameState.tutorialComplete) {
+      startTutorial();
+    } else {
+      showScreen('zone-map');
+    }
   }
-  showScreen('zone-map');
 }
 
 // Title screen key listener
@@ -830,7 +952,7 @@ let titleKeyBound = false;
 function bindTitleKey() {
   if (titleKeyBound) return;
   titleKeyBound = true;
-  document.addEventListener('keydown', function titleHandler(e) {
+  document.addEventListener('keydown', function(e) {
     if (document.getElementById('title-screen').classList.contains('active')) {
       if (/^[a-zA-Z0-9 ]$/.test(e.key) || e.key === 'Enter') {
         e.preventDefault();
@@ -840,6 +962,193 @@ function bindTitleKey() {
     }
   });
 }
+
+// ========== TUTORIAL ==========
+
+function startTutorial() {
+  tutorialStep = 0;
+  tutorialActive = true;
+  showScreen('tutorial-screen');
+  renderTutorialKeyboard();
+  renderTutorialHands();
+  loadTutorialStep();
+}
+
+function skipTutorial() {
+  tutorialActive = false;
+  gameState.tutorialComplete = true;
+  saveGame();
+  showScreen('zone-map');
+}
+
+function renderTutorialHands() {
+  const container = document.getElementById('tutorial-hands');
+  const leftColors = ['var(--finger-pinky-l)', 'var(--finger-ring-l)', 'var(--finger-mid-l)', 'var(--finger-index-l)'];
+  const rightColors = ['var(--finger-index-r)', 'var(--finger-mid-r)', 'var(--finger-ring-r)', 'var(--finger-pinky-r)'];
+  const leftKeys = ['A', 'S', 'D', 'F'];
+  const rightKeys = ['J', 'K', 'L', ';'];
+
+  container.innerHTML = `
+    <div>
+      <div class="hand-label">Left Hand</div>
+      <div class="hand-fingers">
+        ${leftColors.map((c, i) => `<div class="finger-dot" id="finger-l-${i}" style="background:${c}">${leftKeys[i]}</div>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="hand-label">Right Hand</div>
+      <div class="hand-fingers">
+        ${rightColors.map((c, i) => `<div class="finger-dot" id="finger-r-${i}" style="background:${c}">${rightKeys[i]}</div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderTutorialKeyboard() {
+  const container = document.getElementById('tutorial-keyboard');
+  container.innerHTML = '';
+
+  KEYBOARD_ROWS.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'keyboard-row';
+    row.forEach(keyDef => {
+      const keyEl = document.createElement('div');
+      keyEl.className = `key ${keyDef.wide || ''}`;
+      keyEl.dataset.key = keyDef.key;
+      keyEl.id = `tut-key-${keyDef.key}`;
+      keyEl.textContent = keyDef.display || keyDef.key.toUpperCase();
+      keyEl.style.borderBottomColor = FINGER_COLORS[keyDef.finger];
+      keyEl.style.borderBottomWidth = '3px';
+      keyEl.style.borderBottomStyle = 'solid';
+      rowEl.appendChild(keyEl);
+    });
+    container.appendChild(rowEl);
+  });
+}
+
+function loadTutorialStep() {
+  if (tutorialStep >= TUTORIAL_STEPS.length) {
+    // Tutorial complete - do a quick practice
+    finishTutorial();
+    return;
+  }
+
+  const step = TUTORIAL_STEPS[tutorialStep];
+  const stepNum = tutorialStep + 1;
+  const total = TUTORIAL_STEPS.length;
+
+  // Update instruction
+  document.getElementById('tutorial-instruction').innerHTML =
+    `Place your <span class="tutorial-finger-name" style="color:${step.color}">${step.finger}</span> on the <span style="color:${step.color};font-weight:700"> ${step.key.toUpperCase()} </span> key`;
+
+  document.getElementById('tutorial-key-prompt').innerHTML =
+    `<span style="color:${step.color}">${step.key.toUpperCase()}</span>`;
+
+  document.getElementById('tutorial-progress').textContent = `Step ${stepNum} of ${total}`;
+  document.getElementById('tutorial-success').textContent = '';
+
+  // Highlight the correct key on keyboard
+  document.querySelectorAll('#tutorial-keyboard .key').forEach(k => {
+    k.classList.remove('highlight', 'tutorial-home', 'correct-flash');
+  });
+
+  // Show previously completed keys as home position
+  for (let i = 0; i < tutorialStep; i++) {
+    const prevKey = document.getElementById(`tut-key-${TUTORIAL_STEPS[i].key}`);
+    if (prevKey) prevKey.classList.add('tutorial-home');
+  }
+
+  // Highlight current target
+  const targetKey = document.getElementById(`tut-key-${step.key}`);
+  if (targetKey) targetKey.classList.add('highlight');
+
+  // Update finger dots
+  for (let i = 0; i < 4; i++) {
+    const lDot = document.getElementById(`finger-l-${i}`);
+    const rDot = document.getElementById(`finger-r-${i}`);
+    if (lDot) { lDot.className = 'finger-dot'; }
+    if (rDot) { rDot.className = 'finger-dot'; }
+  }
+
+  // Mark completed fingers
+  for (let i = 0; i < tutorialStep; i++) {
+    const prev = TUTORIAL_STEPS[i];
+    const dotId = prev.hand === 'left' ? `finger-l-${prev.dotIndex}` : `finger-r-${prev.dotIndex}`;
+    const dot = document.getElementById(dotId);
+    if (dot) dot.className = 'finger-dot done';
+  }
+
+  // Highlight current finger
+  const currentDotId = step.hand === 'left' ? `finger-l-${step.dotIndex}` : `finger-r-${step.dotIndex}`;
+  const currentDot = document.getElementById(currentDotId);
+  if (currentDot) currentDot.className = 'finger-dot active';
+}
+
+function finishTutorial() {
+  tutorialActive = false;
+  gameState.tutorialComplete = true;
+  saveGame();
+
+  document.getElementById('tutorial-instruction').innerHTML =
+    'Your fingers are in position! Time to start your quest.';
+  document.getElementById('tutorial-key-prompt').textContent = '';
+  document.getElementById('tutorial-progress').textContent = '';
+  document.getElementById('tutorial-success').innerHTML =
+    '<button class="btn btn-primary" onclick="showScreen(\'zone-map\')" style="margin-top:12px">Start Typing Quest!</button>';
+
+  // Mark all fingers as done
+  for (let i = 0; i < 4; i++) {
+    const lDot = document.getElementById(`finger-l-${i}`);
+    const rDot = document.getElementById(`finger-r-${i}`);
+    if (lDot) lDot.className = 'finger-dot done';
+    if (rDot) rDot.className = 'finger-dot done';
+  }
+
+  // Show all home keys
+  document.querySelectorAll('#tutorial-keyboard .key').forEach(k => k.classList.remove('highlight'));
+  TUTORIAL_STEPS.forEach(s => {
+    const k = document.getElementById(`tut-key-${s.key}`);
+    if (k) k.classList.add('tutorial-home');
+  });
+}
+
+// Tutorial key handler
+document.addEventListener('keydown', function(e) {
+  if (!tutorialActive) return;
+  if (tutorialStep >= TUTORIAL_STEPS.length) return;
+
+  const step = TUTORIAL_STEPS[tutorialStep];
+  if (e.key === step.key) {
+    e.preventDefault();
+
+    // Flash correct
+    const keyEl = document.getElementById(`tut-key-${step.key}`);
+    if (keyEl) {
+      keyEl.classList.remove('highlight');
+      keyEl.classList.add('correct-flash');
+      setTimeout(() => { keyEl.classList.remove('correct-flash'); keyEl.classList.add('tutorial-home'); }, 300);
+    }
+
+    const successMessages = [
+      'Got it! Keep that finger there.',
+      'Nice! Hold it right there.',
+      'Perfect! Don\'t move it.',
+      'Excellent! That finger stays.',
+      'Right on! Keep holding.',
+      'Great! Almost done.',
+      'Awesome! You\'re a natural!'
+    ];
+    document.getElementById('tutorial-success').textContent = successMessages[tutorialStep] || 'Great!';
+
+    tutorialStep++;
+    setTimeout(() => loadTutorialStep(), 800);
+  } else if (/^[a-zA-Z]$/.test(e.key)) {
+    e.preventDefault();
+    document.getElementById('tutorial-success').textContent = `That's ${e.key.toUpperCase()} - try pressing ${step.key.toUpperCase()}`;
+    document.getElementById('tutorial-success').style.color = 'var(--error)';
+    setTimeout(() => { document.getElementById('tutorial-success').style.color = ''; }, 1000);
+  }
+});
 
 // ========== ZONE MAP ==========
 
@@ -899,17 +1208,44 @@ function playZone(zoneId) {
   gameState.currentZone = zoneId;
   const zone = ZONES[zoneId];
 
+  // Build word list
+  let wordList;
+  if (zone.useCreatureNames) {
+    // Creature names are the primary words, supplement with extra words
+    const creatureNames = zone.creatures.map(c => c.name);
+    const extras = zone.extraWords || zone.words || [];
+    wordList = [...creatureNames, ...extras];
+  } else {
+    wordList = [...zone.words];
+  }
+
   // Generate 20 encounters
   const encounters = [];
   for (let i = 0; i < 20; i++) {
-    const wordIndex = Math.floor(Math.random() * zone.words.length);
-    const creatureIndex = i % 6; // Cycle through creatures
-    encounters.push({
-      word: zone.words[wordIndex],
-      creatureIndex: creatureIndex,
-      creature: zone.creatures[creatureIndex]
-    });
+    let word, creatureIndex, creature;
+
+    if (zone.useCreatureNames && i < 6) {
+      // First 6 encounters: one per creature, type the creature's name
+      creatureIndex = i;
+      creature = zone.creatures[creatureIndex];
+      word = creature.name;
+    } else {
+      // Remaining encounters: random word, random creature
+      word = wordList[Math.floor(Math.random() * wordList.length)];
+      creatureIndex = Math.floor(Math.random() * 6);
+      creature = zone.creatures[creatureIndex];
+
+      // If the word matches a creature name, show that creature
+      const matchIdx = zone.creatures.findIndex(c => c.name.toLowerCase() === word.toLowerCase());
+      if (matchIdx !== -1) {
+        creatureIndex = matchIdx;
+        creature = zone.creatures[matchIdx];
+      }
+    }
+
+    encounters.push({ word, creatureIndex, creature });
   }
+
   // Shuffle encounters
   for (let i = encounters.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -996,21 +1332,21 @@ function renderTarget() {
 
 function highlightKey() {
   // Clear all highlights
-  document.querySelectorAll('.key').forEach(k => {
+  document.querySelectorAll('#keyboard-container .key').forEach(k => {
     k.classList.remove('highlight', 'correct-flash', 'error-flash');
   });
 
   if (roundState.currentCharIndex >= roundState.currentWord.length) return;
 
   const expectedChar = roundState.currentWord[roundState.currentCharIndex].toLowerCase();
-  const keyEl = document.querySelector(`.key[data-key="${expectedChar}"]`);
+  const keyEl = document.querySelector(`#keyboard-container .key[data-key="${expectedChar}"]`);
   if (keyEl) keyEl.classList.add('highlight');
 
   // Highlight shift if the expected character is uppercase
   const actualChar = roundState.currentWord[roundState.currentCharIndex];
   const needsShift = actualChar !== actualChar.toLowerCase();
   if (needsShift) {
-    const shiftEl = document.querySelector('.key[data-key="shift"]');
+    const shiftEl = document.querySelector('#keyboard-container .key[data-key="shift"]');
     if (shiftEl) shiftEl.classList.add('highlight');
   }
 }
@@ -1038,7 +1374,7 @@ document.addEventListener('keydown', function(e) {
 
 function handleCorrectKey(key) {
   // Flash key green
-  const keyEl = document.querySelector(`.key[data-key="${key.toLowerCase()}"]`);
+  const keyEl = document.querySelector(`#keyboard-container .key[data-key="${key.toLowerCase()}"]`);
   if (keyEl) {
     keyEl.classList.add('correct-flash');
     setTimeout(() => keyEl.classList.remove('correct-flash'), 200);
@@ -1113,10 +1449,6 @@ function handleWrongKey(expected) {
   roundState.streak = 0;
 
   document.getElementById('streak-counter').textContent = '';
-
-  // Flash key red
-  const pressedChar = expected.toLowerCase();
-  document.querySelectorAll('.key').forEach(k => k.classList.remove('error-flash'));
 
   // Flash the target as error
   const chars = document.querySelectorAll('.typing-target .char');
