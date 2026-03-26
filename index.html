@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joel's Typing Quest</title>
+<style>
+/* ========== RESET & BASE ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #334155;
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
+  --accent: #22c55e;
+  --accent-glow: rgba(34, 197, 94, 0.3);
+  --error: #ef4444;
+  --error-glow: rgba(239, 68, 68, 0.3);
+  --gold: #f59e0b;
+  --blue: #3b82f6;
+  --purple: #a855f7;
+  --pink: #ec4899;
+
+  /* Finger colors */
+  --finger-pinky-l: #ef4444;
+  --finger-ring-l: #f97316;
+  --finger-mid-l: #eab308;
+  --finger-index-l: #22c55e;
+  --finger-thumb: #64748b;
+  --finger-index-r: #06b6d4;
+  --finger-mid-r: #3b82f6;
+  --finger-ring-r: #8b5cf6;
+  --finger-pinky-r: #ec4899;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ========== SCREENS ========== */
+.screen {
+  display: none;
+  width: 100%;
+  max-width: 900px;
+  padding: 20px;
+  flex-direction: column;
+  align-items: center;
+}
+.screen.active { display: flex; }
+
+/* ========== TITLE SCREEN ========== */
+#title-screen {
+  text-align: center;
+  gap: 20px;
+}
+.game-title {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--blue), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+.game-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  margin-bottom: 30px;
+}
+.title-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.btn {
+  padding: 14px 40px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+}
+.btn-primary:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--accent-glow); }
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 2px solid var(--bg-card-hover);
+}
+.btn-secondary:hover { border-color: var(--accent); }
+.btn-small {
+  padding: 8px 20px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+}
+.save-notice {
+  color: var(--gold);
+  font-size: 0.85rem;
+  margin-top: 10px;
+}
+.press-hint {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ========== ZONE MAP ========== */
+#zone-map { gap: 20px; }
+.map-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.map-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+}
+.map-stats span { color: var(--accent); font-weight: 600; }
+.zone-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+.zone-card {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+.zone-card:hover:not(.locked) {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.zone-card.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.zone-card.current {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.zone-emoji { font-size: 2rem; margin-bottom: 8px; }
+.zone-name { font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+.zone-keys { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; }
+.zone-stars { font-size: 1.1rem; letter-spacing: 2px; }
+.zone-creatures { font-size: 0.75rem; color: var(--text-dim); margin-top: 6px; }
+.zone-lock { font-size: 1.5rem; position: absolute; top: 12px; right: 12px; }
+.map-bottom-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ========== GAME SCREEN ========== */
+#game-screen { gap: 0; height: 100vh; justify-content: space-between; padding: 12px 20px; }
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 0;
+}
+.game-zone-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.game-zone-name { font-weight: 700; font-size: 1rem; }
+.game-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  align-items: center;
+}
+.game-stats .value { color: var(--accent); font-weight: 600; }
+.streak-counter {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.15s;
+}
+.streak-counter.pop {
+  transform: scale(1.3);
+  color: var(--gold);
+}
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-card);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.game-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  min-height: 0;
+}
+.creature-display {
+  text-align: center;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.creature-emoji {
+  font-size: 4rem;
+  transition: all 0.3s;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+}
+.creature-emoji.befriended {
+  animation: befriend 0.6s ease;
+}
+@keyframes befriend {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.3) rotate(-5deg); }
+  60% { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1); }
+}
+.creature-emoji.shake {
+  animation: shake 0.3s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.creature-name {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.typing-target {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.typing-target .char {
+  display: inline-block;
+  padding: 2px 1px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.typing-target .char.correct { color: var(--accent); }
+.typing-target .char.current {
+  color: var(--text);
+  background: var(--bg-card);
+  border-bottom: 3px solid var(--accent);
+}
+.typing-target .char.waiting { color: var(--text-dim); }
+.typing-target .char.error {
+  color: var(--error);
+  background: var(--error-glow);
+}
+.typing-target .char.space {
+  width: 16px;
+}
+.message-area {
+  min-height: 28px;
+  font-size: 0.95rem;
+  color: var(--accent);
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.2s;
+}
+.message-area.error-msg { color: var(--error); }
+.keyboard-toggle {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-hover);
+  color: var(--text-dim);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.keyboard-toggle:hover { border-color: var(--accent); }
+
+/* ========== VIRTUAL KEYBOARD ========== */
+.keyboard-container {
+  width: 100%;
+  max-width: 780px;
+  padding: 8px 0;
+}
+.keyboard-container.hidden { display: none; }
+.keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.key {
+  width: 52px;
+  height: 42px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--bg-card);
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  color: var(--text);
+}
+.key.highlight {
+  border-color: #fff;
+  box-shadow: 0 0 12px rgba(255,255,255,0.3);
+  transform: scale(1.08);
+}
+.key.correct-flash {
+  background: var(--accent) !important;
+  color: #000 !important;
+  border-color: var(--accent) !important;
+}
+.key.error-flash {
+  background: var(--error) !important;
+  color: #fff !important;
+  border-color: var(--error) !important;
+}
+.key-space { width: 280px; }
+.key-shift { width: 90px; font-size: 0.75rem; }
+.key-wide { width: 72px; font-size: 0.7rem; }
+.finger-guide { font-size: 0.5rem; position: absolute; bottom: 2px; color: rgba(255,255,255,0.4); }
+
+/* ========== ZONE COMPLETE ========== */
+#zone-complete {
+  text-align: center;
+  gap: 20px;
+}
+.complete-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+.complete-zone { font-size: 1.2rem; color: var(--text-dim); }
+.complete-stars { font-size: 3rem; letter-spacing: 6px; margin: 10px 0; }
+.complete-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 500px;
+}
+.complete-stat {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 16px;
+}
+.complete-stat .label { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 4px; }
+.complete-stat .value { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+.complete-creatures {
+  display: flex;
+  gap: 12px;
+  font-size: 2rem;
+  margin: 10px 0;
+}
+.complete-message {
+  font-size: 1rem;
+  color: var(--gold);
+  font-weight: 600;
+}
+.complete-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+/* ========== COLLECTION ========== */
+#collection-screen { gap: 16px; }
+.collection-title { font-size: 1.8rem; font-weight: 700; }
+.collection-count { color: var(--text-dim); margin-bottom: 10px; }
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+.collection-zone-label {
+  grid-column: 1 / -1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding: 8px 0 2px;
+  border-bottom: 1px solid var(--bg-card-hover);
+}
+.creature-card {
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 12px 8px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.creature-card.locked {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+.creature-card .emoji { font-size: 1.8rem; }
+.creature-card .name { font-size: 0.7rem; color: var(--text-dim); margin-top: 4px; }
+
+/* ========== ANIMATIONS ========== */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.screen.active { animation: slideIn 0.3s ease; }
+
+@keyframes starPop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+.star-animate { display: inline-block; animation: starPop 0.4s ease forwards; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .game-title { font-size: 2rem; }
+  .zone-grid { grid-template-columns: repeat(2, 1fr); }
+  .collection-grid { grid-template-columns: repeat(4, 1fr); }
+  .typing-target { font-size: 1.6rem; }
+  .key { width: 38px; height: 36px; font-size: 0.75rem; }
+  .key-space { width: 180px; }
+  .key-shift { width: 60px; }
+  .creature-emoji { font-size: 3rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ========== TITLE SCREEN ========== -->
+<div id="title-screen" class="screen active">
+  <div class="game-title">Typing Quest</div>
+  <div class="game-subtitle">Learn to type by exploring the wilderness</div>
+  <div class="title-buttons">
+    <button class="btn btn-primary" onclick="startGame(false)">New Adventure</button>
+    <button class="btn btn-secondary" id="continue-btn" style="display:none" onclick="startGame(true)">Continue Adventure</button>
+  </div>
+  <div class="press-hint">Press any key to begin</div>
+  <div class="save-notice" id="save-notice" style="display:none"></div>
+</div>
+
+<!-- ========== ZONE MAP ========== -->
+<div id="zone-map" class="screen">
+  <div class="map-title">Choose Your Zone</div>
+  <div class="map-stats">
+    Level <span id="map-level">1</span> &middot;
+    <span id="map-xp">0</span> XP &middot;
+    <span id="map-creatures">0</span>/36 Creatures
+  </div>
+  <div class="zone-grid" id="zone-grid"></div>
+  <div class="map-bottom-row">
+    <button class="btn btn-secondary btn-small" onclick="showScreen('collection-screen')">Collection</button>
+    <button class="btn btn-secondary btn-small" onclick="showScreen('title-screen')">Menu</button>
+  </div>
+</div>
+
+<!-- ========== GAME SCREEN ========== -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <div class="game-zone-info">
+      <span class="game-zone-name" id="game-zone-name"></span>
+    </div>
+    <div class="game-stats">
+      <div>Round <span class="value" id="game-encounter">1</span>/20</div>
+      <div class="streak-counter" id="streak-counter"></div>
+      <div>XP <span class="value" id="game-xp">0</span></div>
+      <button class="btn btn-secondary btn-small" id="kb-toggle" onclick="toggleKeyboard()">Hide Keys</button>
+    </div>
+  </div>
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="game-progress"></div>
+  </div>
+  <div class="game-area">
+    <div class="creature-display">
+      <div class="creature-emoji" id="creature-emoji"></div>
+      <div class="creature-name" id="creature-name"></div>
+    </div>
+    <div class="typing-target" id="typing-target"></div>
+    <div class="message-area" id="message-area"></div>
+  </div>
+  <div class="keyboard-container" id="keyboard-container"></div>
+</div>
+
+<!-- ========== ZONE COMPLETE ========== -->
+<div id="zone-complete" class="screen">
+  <div class="complete-title">Round Complete!</div>
+  <div class="complete-zone" id="complete-zone"></div>
+  <div class="complete-stars" id="complete-stars"></div>
+  <div class="complete-stats">
+    <div class="complete-stat">
+      <div class="label">Accuracy</div>
+      <div class="value" id="complete-accuracy">0%</div>
+    </div>
+    <div class="complete-stat">
+      <div class="label">XP Earned</div>
+      <div class="value" id="complete-xp">0</div>
+    </div>
+    <div class="complete-stat">
+      <div class="label">Best Streak</div>
+      <div class="value" id="complete-streak">0</div>
+    </div>
+  </div>
+  <div class="complete-creatures" id="complete-creatures"></div>
+  <div class="complete-message" id="complete-message"></div>
+  <div class="complete-buttons">
+    <button class="btn btn-primary" onclick="playZone(gameState.currentZone)">Play Again</button>
+    <button class="btn btn-secondary" onclick="showScreen('zone-map')">Zone Map</button>
+    <button class="btn btn-secondary" id="next-zone-btn" style="display:none" onclick="playNextZone()">Next Zone</button>
+  </div>
+</div>
+
+<!-- ========== COLLECTION ========== -->
+<div id="collection-screen" class="screen">
+  <div class="collection-title">Creature Collection</div>
+  <div class="collection-count" id="collection-count">0/36 befriended</div>
+  <div class="collection-grid" id="collection-grid"></div>
+  <button class="btn btn-secondary btn-small" style="margin-top:16px" onclick="showScreen('zone-map')">Back to Map</button>
+</div>
+
+<script>
+// ========== GAME DATA ==========
+
+const ZONES = [
+  {
+    id: 0, name: 'The Meadow', emoji: '🌿', keys: ['a','s','d','f'],
+    words: ['a','s','d','f','as','ad','da','fa','sad','dad','fad','add','ads','dads','fads','adds','sass','aff','das'],
+    creatures: [
+      { name: 'Butterfly', emoji: '🦋' },
+      { name: 'Rabbit', emoji: '🐇' },
+      { name: 'Fox', emoji: '🦊' },
+      { name: 'Deer', emoji: '🦌' },
+      { name: 'Ladybug', emoji: '🐞' },
+      { name: 'Frog', emoji: '🐸' }
+    ]
+  },
+  {
+    id: 1, name: 'The Lake', emoji: '🏞️', keys: ['j','k','l'],
+    words: ['j','k','l','jk','lk','fl','sl','ask','all','fall','lad','lass','flask','skull','dull','fall','tall','shall','salad','staff','lads','daffodil','halls','falls'],
+    creatures: [
+      { name: 'Duck', emoji: '🦆' },
+      { name: 'Fish', emoji: '🐟' },
+      { name: 'Turtle', emoji: '🐢' },
+      { name: 'Dragonfly', emoji: '🪰' },
+      { name: 'Heron', emoji: '🦩' },
+      { name: 'Otter', emoji: '🦦' }
+    ]
+  },
+  {
+    id: 2, name: 'The Forest', emoji: '🌲', keys: ['q','w','e','r','t','y','u','i','o','p'],
+    words: ['the','are','you','type','work','quite','power','world','your','write','tower','proud','quest','outer','fruit','quiet','quilt','reply','tulip','pilot','risky','youth','trout','poker','squid','equip','dirty','dusty','jolly','stork','stripe','would','query','rapid','tried'],
+    creatures: [
+      { name: 'Owl', emoji: '🦉' },
+      { name: 'Squirrel', emoji: '🐿️' },
+      { name: 'Bear', emoji: '🐻' },
+      { name: 'Wolf', emoji: '🐺' },
+      { name: 'Eagle', emoji: '🦅' },
+      { name: 'Hedgehog', emoji: '🦔' }
+    ]
+  },
+  {
+    id: 3, name: 'The Cave', emoji: '🕳️', keys: ['z','x','c','v','b','n','m'],
+    words: ['climb','above','frozen','mixed','brave','magic','next','zone','vixen','black','jumpy','exact','verb','crisp','bacon','cabin','numb','bench','cozy','inbox','dozen','waltz','boxer','vivid','novel','blink','clamp','thumb','ranch','oxen','haven','mango','blaze','crumb'],
+    creatures: [
+      { name: 'Bat', emoji: '🦇' },
+      { name: 'Spider', emoji: '🕷️' },
+      { name: 'Salamander', emoji: '🦎' },
+      { name: 'Crystal Moth', emoji: '🪻' },
+      { name: 'Mole', emoji: '🐀' },
+      { name: 'Glowworm', emoji: '🪱' }
+    ]
+  },
+  {
+    id: 4, name: 'The Mountain', emoji: '🏔️', keys: ['1','2','3','4','5','6','7','8','9','0'],
+    words: ['Hello','Joel','Friday','March','April','Quest','Level 5','Room 42','High 5','Call 911','Code 7','Page 3','Zone 6','Top 10','Score 99','Win 100','Item 28','Rank 1','Gate 4','Step 12'],
+    creatures: [
+      { name: 'Goat', emoji: '🐐' },
+      { name: 'Hawk', emoji: '🦅' },
+      { name: 'Snow Leopard', emoji: '🐆' },
+      { name: 'Yak', emoji: '🦬' },
+      { name: 'Marmot', emoji: '🦫' },
+      { name: 'Condor', emoji: '🪽' }
+    ]
+  },
+  {
+    id: 5, name: 'The Summit', emoji: '⛰️', keys: [],
+    words: [
+      'The quick brown fox jumps over the lazy dog',
+      'Every journey starts with a single step',
+      'Practice makes progress not perfection',
+      'You are getting faster every day',
+      'Adventure awaits beyond the mountain top',
+      'The owl and the fox became good friends',
+      'Typing is a skill that lasts a lifetime',
+      'Stars shine brightest on the darkest nights',
+      'Keep going you are almost at the summit',
+      'The brave explorer found a hidden treasure',
+      'Quiet rivers run deeper than loud streams',
+      'Every expert was once a beginner too',
+      'The forest was alive with sounds of nature',
+      'Believe in yourself and you will succeed',
+      'Creativity is intelligence having fun'
+    ],
+    creatures: [
+      { name: 'Phoenix', emoji: '🔥' },
+      { name: 'Dragon', emoji: '🐉' },
+      { name: 'Griffin', emoji: '🦁' },
+      { name: 'Pegasus', emoji: '🦄' },
+      { name: 'Thunderbird', emoji: '⚡' },
+      { name: 'Unicorn', emoji: '🌈' }
+    ]
+  }
+];
+
+// Keyboard layout with finger assignments
+// Fingers: lp=left pinky, lr=left ring, lm=left middle, li=left index, t=thumb, ri=right index, rm=right middle, rr=right ring, rp=right pinky
+const KEYBOARD_ROWS = [
+  [
+    {key:'1',finger:'lp'},{key:'2',finger:'lr'},{key:'3',finger:'lm'},{key:'4',finger:'li'},
+    {key:'5',finger:'li'},{key:'6',finger:'ri'},{key:'7',finger:'ri'},{key:'8',finger:'rm'},
+    {key:'9',finger:'rr'},{key:'0',finger:'rp'}
+  ],
+  [
+    {key:'q',finger:'lp'},{key:'w',finger:'lr'},{key:'e',finger:'lm'},{key:'r',finger:'li'},
+    {key:'t',finger:'li'},{key:'y',finger:'ri'},{key:'u',finger:'ri'},{key:'i',finger:'rm'},
+    {key:'o',finger:'rr'},{key:'p',finger:'rp'}
+  ],
+  [
+    {key:'a',finger:'lp'},{key:'s',finger:'lr'},{key:'d',finger:'lm'},{key:'f',finger:'li'},
+    {key:'g',finger:'li'},{key:'h',finger:'ri'},{key:'j',finger:'ri'},{key:'k',finger:'rm'},
+    {key:'l',finger:'rr'},{key:';',finger:'rp'}
+  ],
+  [
+    {key:'shift',finger:'lp',display:'Shift',wide:'key-shift'},
+    {key:'z',finger:'lp'},{key:'x',finger:'lr'},{key:'c',finger:'lm'},{key:'v',finger:'li'},
+    {key:'b',finger:'li'},{key:'n',finger:'ri'},{key:'m',finger:'ri'},
+    {key:'backspace',finger:'rp',display:'Bksp',wide:'key-wide'}
+  ],
+  [
+    {key:' ',finger:'t',display:'Space',wide:'key-space'}
+  ]
+];
+
+const FINGER_COLORS = {
+  lp: 'var(--finger-pinky-l)',
+  lr: 'var(--finger-ring-l)',
+  lm: 'var(--finger-mid-l)',
+  li: 'var(--finger-index-l)',
+  t:  'var(--finger-thumb)',
+  ri: 'var(--finger-index-r)',
+  rm: 'var(--finger-mid-r)',
+  rr: 'var(--finger-ring-r)',
+  rp: 'var(--finger-pinky-r)'
+};
+
+const ENCOURAGEMENTS = [
+  'Great job!', 'Keep it up!', 'You\'re on fire!', 'Awesome!',
+  'Incredible!', 'Way to go!', 'Perfect!', 'Outstanding!',
+  'Fantastic!', 'Brilliant!'
+];
+
+// ========== GAME STATE ==========
+
+const DEFAULT_STATE = {
+  currentZone: 0,
+  xp: 0,
+  level: 1,
+  zonesUnlocked: [true, false, false, false, false, false],
+  zoneStars: [0, 0, 0, 0, 0, 0],
+  zoneBestAccuracy: [0, 0, 0, 0, 0, 0],
+  creaturesCollected: Array(6).fill(null).map(() => Array(6).fill(false)),
+  showKeyboard: true
+};
+
+let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+let canSave = true;
+
+// Round state (not persisted)
+let roundState = {
+  zoneId: 0,
+  encounters: [],
+  currentEncounter: 0,
+  currentCharIndex: 0,
+  currentWord: '',
+  hasError: false,
+  correctEncounters: 0,
+  totalXpEarned: 0,
+  streak: 0,
+  bestStreak: 0,
+  creaturesThisRound: [],
+  newCreatures: []
+};
+
+// ========== SAVE/LOAD ==========
+
+function saveGame() {
+  if (!canSave) return;
+  try {
+    localStorage.setItem('typing-quest-save', JSON.stringify(gameState));
+  } catch(e) {
+    canSave = false;
+  }
+}
+
+function loadGame() {
+  try {
+    const saved = localStorage.getItem('typing-quest-save');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      gameState = { ...JSON.parse(JSON.stringify(DEFAULT_STATE)), ...parsed };
+      return true;
+    }
+  } catch(e) {
+    canSave = false;
+  }
+  return false;
+}
+
+function checkSaveSupport() {
+  try {
+    localStorage.setItem('typing-quest-test', '1');
+    localStorage.removeItem('typing-quest-test');
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// ========== SCREEN MANAGEMENT ==========
+
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+
+  if (screenId === 'zone-map') renderZoneMap();
+  if (screenId === 'collection-screen') renderCollection();
+}
+
+// ========== TITLE SCREEN ==========
+
+function initTitle() {
+  const hasSave = loadGame();
+  const continueBtn = document.getElementById('continue-btn');
+  const saveNotice = document.getElementById('save-notice');
+
+  if (hasSave) {
+    continueBtn.style.display = 'block';
+  }
+
+  if (!checkSaveSupport()) {
+    canSave = false;
+    saveNotice.textContent = 'Progress won\'t be saved in this browser mode';
+    saveNotice.style.display = 'block';
+  }
+}
+
+function startGame(continueGame) {
+  if (!continueGame) {
+    gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    saveGame();
+  }
+  showScreen('zone-map');
+}
+
+// Title screen key listener
+let titleKeyBound = false;
+function bindTitleKey() {
+  if (titleKeyBound) return;
+  titleKeyBound = true;
+  document.addEventListener('keydown', function titleHandler(e) {
+    if (document.getElementById('title-screen').classList.contains('active')) {
+      if (e.key === 'Escape' || e.key === 'Tab' || e.key === 'Meta' || e.key === 'Alt' || e.key === 'Control') return;
+      e.preventDefault();
+      const hasSave = !!localStorage.getItem('typing-quest-save');
+      startGame(hasSave);
+    }
+  });
+}
+
+// ========== ZONE MAP ==========
+
+function renderZoneMap() {
+  document.getElementById('map-level').textContent = gameState.level;
+  document.getElementById('map-xp').textContent = gameState.xp;
+  document.getElementById('map-creatures').textContent = countCreatures();
+
+  const grid = document.getElementById('zone-grid');
+  grid.innerHTML = '';
+
+  ZONES.forEach((zone, i) => {
+    const unlocked = gameState.zonesUnlocked[i];
+    const stars = gameState.zoneStars[i];
+    const creatureCount = gameState.creaturesCollected[i].filter(Boolean).length;
+    const isCurrent = i === getNextUncompletedZone();
+
+    const card = document.createElement('div');
+    card.className = `zone-card ${unlocked ? '' : 'locked'} ${isCurrent && unlocked ? 'current' : ''}`;
+    card.innerHTML = `
+      <div class="zone-emoji">${zone.emoji}</div>
+      <div class="zone-name">${zone.name}</div>
+      <div class="zone-keys">${zone.keys.length ? zone.keys.join(' ').toUpperCase() : 'All Keys'}</div>
+      <div class="zone-stars">${renderStars(stars)}</div>
+      <div class="zone-creatures">${creatureCount}/6 creatures</div>
+      ${unlocked ? '' : '<div class="zone-lock">🔒</div>'}
+    `;
+    if (unlocked) {
+      card.onclick = () => playZone(i);
+    }
+    grid.appendChild(card);
+  });
+}
+
+function renderStars(count) {
+  let s = '';
+  for (let i = 0; i < 3; i++) {
+    s += i < count ? '⭐' : '☆';
+  }
+  return s;
+}
+
+function getNextUncompletedZone() {
+  for (let i = 0; i < 6; i++) {
+    if (gameState.zonesUnlocked[i] && gameState.zoneStars[i] === 0) return i;
+  }
+  return gameState.currentZone;
+}
+
+function countCreatures() {
+  return gameState.creaturesCollected.flat().filter(Boolean).length;
+}
+
+// ========== GAME PLAY ==========
+
+function playZone(zoneId) {
+  gameState.currentZone = zoneId;
+  const zone = ZONES[zoneId];
+
+  // Generate 20 encounters
+  const encounters = [];
+  for (let i = 0; i < 20; i++) {
+    const wordIndex = Math.floor(Math.random() * zone.words.length);
+    const creatureIndex = i % 6; // Cycle through creatures
+    encounters.push({
+      word: zone.words[wordIndex],
+      creatureIndex: creatureIndex,
+      creature: zone.creatures[creatureIndex]
+    });
+  }
+  // Shuffle encounters
+  for (let i = encounters.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [encounters[i], encounters[j]] = [encounters[j], encounters[i]];
+  }
+
+  roundState = {
+    zoneId,
+    encounters,
+    currentEncounter: 0,
+    currentCharIndex: 0,
+    currentWord: '',
+    hasError: false,
+    correctEncounters: 0,
+    totalXpEarned: 0,
+    streak: 0,
+    bestStreak: 0,
+    creaturesThisRound: [],
+    newCreatures: []
+  };
+
+  showScreen('game-screen');
+  document.getElementById('game-zone-name').textContent = `${zone.emoji} ${zone.name}`;
+  document.getElementById('game-xp').textContent = gameState.xp;
+
+  if (gameState.showKeyboard) {
+    document.getElementById('keyboard-container').classList.remove('hidden');
+    document.getElementById('kb-toggle').textContent = 'Hide Keys';
+  } else {
+    document.getElementById('keyboard-container').classList.add('hidden');
+    document.getElementById('kb-toggle').textContent = 'Show Keys';
+  }
+
+  renderKeyboard();
+  loadEncounter(0);
+}
+
+function loadEncounter(index) {
+  if (index >= 20) {
+    finishRound();
+    return;
+  }
+
+  const enc = roundState.encounters[index];
+  roundState.currentEncounter = index;
+  roundState.currentWord = enc.word;
+  roundState.currentCharIndex = 0;
+  roundState.hasError = false;
+
+  // Update UI
+  document.getElementById('game-encounter').textContent = index + 1;
+  document.getElementById('game-progress').style.width = `${(index / 20) * 100}%`;
+  document.getElementById('creature-emoji').textContent = enc.creature.emoji;
+  document.getElementById('creature-emoji').className = 'creature-emoji';
+  document.getElementById('creature-name').textContent = enc.creature.name;
+  document.getElementById('message-area').textContent = '';
+  document.getElementById('message-area').className = 'message-area';
+
+  renderTarget();
+  highlightKey();
+}
+
+function renderTarget() {
+  const target = document.getElementById('typing-target');
+  target.innerHTML = '';
+
+  for (let i = 0; i < roundState.currentWord.length; i++) {
+    const span = document.createElement('span');
+    const ch = roundState.currentWord[i];
+    span.textContent = ch === ' ' ? '\u00A0' : ch;
+    span.className = 'char ';
+    if (ch === ' ') span.classList.add('space');
+
+    if (i < roundState.currentCharIndex) {
+      span.classList.add('correct');
+    } else if (i === roundState.currentCharIndex) {
+      span.classList.add('current');
+    } else {
+      span.classList.add('waiting');
+    }
+    target.appendChild(span);
+  }
+}
+
+function highlightKey() {
+  // Clear all highlights
+  document.querySelectorAll('.key').forEach(k => {
+    k.classList.remove('highlight', 'correct-flash', 'error-flash');
+  });
+
+  if (roundState.currentCharIndex >= roundState.currentWord.length) return;
+
+  const expectedChar = roundState.currentWord[roundState.currentCharIndex].toLowerCase();
+  const keyEl = document.querySelector(`.key[data-key="${expectedChar}"]`);
+  if (keyEl) keyEl.classList.add('highlight');
+
+  // Highlight shift if needed
+  const actualChar = roundState.currentWord[roundState.currentCharIndex];
+  if (actualChar !== actualChar.toLowerCase() || /[0-9]/.test(actualChar) === false && actualChar === actualChar.toUpperCase() && actualChar !== actualChar.toLowerCase()) {
+    const shiftEl = document.querySelector('.key[data-key="shift"]');
+    if (shiftEl) shiftEl.classList.add('highlight');
+  }
+}
+
+// ========== KEY HANDLER ==========
+
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('game-screen').classList.contains('active')) return;
+  if (e.key === 'Escape') { showScreen('zone-map'); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Tab' || e.key === 'CapsLock') { e.preventDefault(); return; }
+  if (e.key === 'Shift' || e.key === 'Backspace') return;
+
+  e.preventDefault();
+
+  const expected = roundState.currentWord[roundState.currentCharIndex];
+  const pressed = e.key;
+
+  if (pressed === expected) {
+    handleCorrectKey(pressed);
+  } else {
+    handleWrongKey(expected);
+  }
+});
+
+function handleCorrectKey(key) {
+  // Flash key green
+  const keyEl = document.querySelector(`.key[data-key="${key.toLowerCase()}"]`);
+  if (keyEl) {
+    keyEl.classList.add('correct-flash');
+    setTimeout(() => keyEl.classList.remove('correct-flash'), 200);
+  }
+
+  // XP
+  let xpGain = 10;
+  roundState.streak++;
+  if (roundState.streak >= 25) xpGain = 30;
+  else if (roundState.streak >= 10) xpGain = 20;
+  roundState.bestStreak = Math.max(roundState.bestStreak, roundState.streak);
+  roundState.totalXpEarned += xpGain;
+  gameState.xp += xpGain;
+  gameState.level = Math.floor(gameState.xp / 500) + 1;
+
+  document.getElementById('game-xp').textContent = gameState.xp;
+
+  // Streak display
+  const streakEl = document.getElementById('streak-counter');
+  if (roundState.streak >= 3) {
+    streakEl.textContent = `${roundState.streak} streak!`;
+    streakEl.classList.add('pop');
+    setTimeout(() => streakEl.classList.remove('pop'), 150);
+  } else {
+    streakEl.textContent = '';
+  }
+
+  // Advance character
+  roundState.currentCharIndex++;
+
+  if (roundState.currentCharIndex >= roundState.currentWord.length) {
+    // Encounter complete
+    const enc = roundState.encounters[roundState.currentEncounter];
+
+    if (!roundState.hasError) {
+      roundState.correctEncounters++;
+
+      // Befriend creature if not already
+      const ci = enc.creatureIndex;
+      if (!gameState.creaturesCollected[roundState.zoneId][ci]) {
+        gameState.creaturesCollected[roundState.zoneId][ci] = true;
+        roundState.newCreatures.push(enc.creature);
+
+        document.getElementById('creature-emoji').classList.add('befriended');
+        document.getElementById('message-area').textContent = `${enc.creature.name} befriended!`;
+        document.getElementById('message-area').className = 'message-area';
+
+        saveGame();
+        setTimeout(() => loadEncounter(roundState.currentEncounter + 1), 900);
+        return;
+      }
+    }
+
+    // Brief pause then next encounter
+    if (!roundState.hasError) {
+      const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
+      document.getElementById('message-area').textContent = msg;
+    }
+    setTimeout(() => loadEncounter(roundState.currentEncounter + 1), 600);
+  } else {
+    renderTarget();
+    highlightKey();
+  }
+}
+
+function handleWrongKey(expected) {
+  roundState.hasError = true;
+  roundState.streak = 0;
+
+  document.getElementById('streak-counter').textContent = '';
+
+  // Flash key red
+  const pressedChar = expected.toLowerCase();
+  document.querySelectorAll('.key').forEach(k => k.classList.remove('error-flash'));
+
+  // Flash the target as error
+  const chars = document.querySelectorAll('.typing-target .char');
+  if (chars[roundState.currentCharIndex]) {
+    chars[roundState.currentCharIndex].classList.add('error');
+    setTimeout(() => {
+      if (chars[roundState.currentCharIndex]) {
+        chars[roundState.currentCharIndex].classList.remove('error');
+        chars[roundState.currentCharIndex].classList.add('current');
+      }
+    }, 400);
+  }
+
+  // Shake creature
+  const creatureEl = document.getElementById('creature-emoji');
+  creatureEl.classList.add('shake');
+  setTimeout(() => creatureEl.classList.remove('shake'), 300);
+
+  // Show hint
+  document.getElementById('message-area').textContent = `Press ${expected === ' ' ? 'Space' : expected}`;
+  document.getElementById('message-area').className = 'message-area error-msg';
+
+  // Highlight correct key
+  highlightKey();
+}
+
+// ========== ROUND COMPLETE ==========
+
+function finishRound() {
+  const zoneId = roundState.zoneId;
+  const zone = ZONES[zoneId];
+  const accuracy = Math.round((roundState.correctEncounters / 20) * 100);
+
+  // Calculate stars
+  let stars = 0;
+  if (accuracy >= 97) stars = 3;
+  else if (accuracy >= 90) stars = 2;
+  else if (accuracy >= 80) stars = 1;
+
+  // Update best
+  if (accuracy > gameState.zoneBestAccuracy[zoneId]) {
+    gameState.zoneBestAccuracy[zoneId] = accuracy;
+  }
+  if (stars > gameState.zoneStars[zoneId]) {
+    gameState.zoneStars[zoneId] = stars;
+  }
+
+  // Unlock next zone
+  let unlockedNew = false;
+  if (accuracy >= 80 && zoneId < 5 && !gameState.zonesUnlocked[zoneId + 1]) {
+    gameState.zonesUnlocked[zoneId + 1] = true;
+    unlockedNew = true;
+  }
+
+  saveGame();
+
+  // Render complete screen
+  document.getElementById('complete-zone').textContent = `${zone.emoji} ${zone.name}`;
+  document.getElementById('complete-accuracy').textContent = `${accuracy}%`;
+  document.getElementById('complete-xp').textContent = `+${roundState.totalXpEarned}`;
+  document.getElementById('complete-streak').textContent = roundState.bestStreak;
+
+  // Animate stars
+  const starsEl = document.getElementById('complete-stars');
+  starsEl.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const span = document.createElement('span');
+    span.className = 'star-animate';
+    span.style.animationDelay = `${i * 0.2}s`;
+    span.textContent = i < stars ? '⭐' : '☆';
+    starsEl.appendChild(span);
+  }
+
+  // Show new creatures
+  const creaturesEl = document.getElementById('complete-creatures');
+  if (roundState.newCreatures.length > 0) {
+    creaturesEl.innerHTML = roundState.newCreatures.map(c =>
+      `<span title="${c.name}">${c.emoji}</span>`
+    ).join('');
+  } else {
+    creaturesEl.innerHTML = '';
+  }
+
+  // Message
+  const msgEl = document.getElementById('complete-message');
+  if (unlockedNew) {
+    msgEl.textContent = `New zone unlocked: ${ZONES[zoneId + 1].name}!`;
+  } else if (accuracy >= 97) {
+    msgEl.textContent = 'Perfect round! Amazing!';
+  } else if (accuracy >= 80) {
+    msgEl.textContent = 'Great work! Keep practicing for more stars!';
+  } else {
+    msgEl.textContent = 'Keep practicing! You need 80% accuracy to unlock the next zone.';
+  }
+
+  // Next zone button
+  const nextBtn = document.getElementById('next-zone-btn');
+  if (unlockedNew || (zoneId < 5 && gameState.zonesUnlocked[zoneId + 1])) {
+    nextBtn.style.display = 'block';
+  } else {
+    nextBtn.style.display = 'none';
+  }
+
+  showScreen('zone-complete');
+}
+
+function playNextZone() {
+  const next = gameState.currentZone + 1;
+  if (next < 6 && gameState.zonesUnlocked[next]) {
+    playZone(next);
+  }
+}
+
+// ========== KEYBOARD ==========
+
+function renderKeyboard() {
+  const container = document.getElementById('keyboard-container');
+  container.innerHTML = '';
+
+  KEYBOARD_ROWS.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'keyboard-row';
+
+    row.forEach(keyDef => {
+      const keyEl = document.createElement('div');
+      keyEl.className = `key ${keyDef.wide || ''}`;
+      keyEl.dataset.key = keyDef.key;
+      keyEl.textContent = keyDef.display || keyDef.key.toUpperCase();
+      keyEl.style.borderBottomColor = FINGER_COLORS[keyDef.finger];
+      keyEl.style.borderBottomWidth = '3px';
+      keyEl.style.borderBottomStyle = 'solid';
+      rowEl.appendChild(keyEl);
+    });
+
+    container.appendChild(rowEl);
+  });
+}
+
+function toggleKeyboard() {
+  gameState.showKeyboard = !gameState.showKeyboard;
+  const container = document.getElementById('keyboard-container');
+  const btn = document.getElementById('kb-toggle');
+
+  if (gameState.showKeyboard) {
+    container.classList.remove('hidden');
+    btn.textContent = 'Hide Keys';
+  } else {
+    container.classList.add('hidden');
+    btn.textContent = 'Show Keys';
+  }
+  saveGame();
+}
+
+// ========== COLLECTION ==========
+
+function renderCollection() {
+  document.getElementById('collection-count').textContent = `${countCreatures()}/36 befriended`;
+
+  const grid = document.getElementById('collection-grid');
+  grid.innerHTML = '';
+
+  ZONES.forEach((zone, zi) => {
+    const label = document.createElement('div');
+    label.className = 'collection-zone-label';
+    label.textContent = `${zone.emoji} ${zone.name}`;
+    grid.appendChild(label);
+
+    zone.creatures.forEach((creature, ci) => {
+      const card = document.createElement('div');
+      const collected = gameState.creaturesCollected[zi][ci];
+      card.className = `creature-card ${collected ? '' : 'locked'}`;
+      card.innerHTML = `
+        <div class="emoji">${creature.emoji}</div>
+        <div class="name">${collected ? creature.name : '???'}</div>
+      `;
+      grid.appendChild(card);
+    });
+  });
+}
+
+// ========== INIT ==========
+
+initTitle();
+bindTitleKey();
+</script>
+</body>
+</html>
