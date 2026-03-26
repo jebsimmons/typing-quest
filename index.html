@@ -444,9 +444,87 @@ body {
   border-color: var(--gold) !important;
   box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
 }
+.key.home-row-key {
+  background: #2a3a4a;
+  border-top: 2px solid rgba(245, 158, 11, 0.35);
+}
+.key.home-row-bump {
+  position: relative;
+}
+.key.home-row-bump::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 1px;
+  opacity: 0.7;
+}
 .key-space { width: 280px; }
 .key-shift { width: 90px; font-size: 0.75rem; }
 .key-wide { width: 72px; font-size: 0.7rem; }
+
+/* ========== REFRESHER ========== */
+#refresher-screen {
+  text-align: center;
+  gap: 16px;
+}
+.refresher-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.refresher-tip {
+  font-size: 1rem;
+  color: var(--text-dim);
+  max-width: 500px;
+  line-height: 1.6;
+}
+.refresher-tip strong {
+  color: var(--gold);
+}
+.refresher-prompt {
+  font-size: 2.5rem;
+  font-weight: 800;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.refresher-finger-hint {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  min-height: 24px;
+}
+.refresher-progress-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.refresher-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-card-hover);
+  transition: all 0.2s;
+}
+.refresher-dot.done {
+  background: var(--accent);
+}
+.refresher-dot.current {
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+.refresher-message {
+  font-size: 0.95rem;
+  color: var(--accent);
+  font-weight: 600;
+  min-height: 24px;
+}
 
 /* ========== ZONE COMPLETE ========== */
 #zone-complete {
@@ -577,6 +655,20 @@ body {
   <div class="tutorial-progress" id="tutorial-progress"></div>
   <div class="tutorial-keyboard-container" id="tutorial-keyboard"></div>
   <button class="btn btn-secondary btn-small" style="margin-top:12px" onclick="skipTutorial()">Skip Tutorial</button>
+</div>
+
+<!-- ========== HOME ROW REFRESHER ========== -->
+<div id="refresher-screen" class="screen">
+  <div class="refresher-title">Home Row Check</div>
+  <div class="refresher-tip" id="refresher-tip">
+    Find the <strong>bumps on F and J</strong> with your index fingers. That's how you know you're on the home row without looking!
+  </div>
+  <div class="refresher-prompt" id="refresher-prompt"></div>
+  <div class="refresher-finger-hint" id="refresher-finger-hint"></div>
+  <div class="refresher-progress-dots" id="refresher-dots"></div>
+  <div class="refresher-message" id="refresher-message"></div>
+  <div class="keyboard-container" id="refresher-keyboard"></div>
+  <button class="btn btn-secondary btn-small" style="margin-top:8px" onclick="skipRefresher()">Skip</button>
 </div>
 
 <!-- ========== ZONE MAP ========== -->
@@ -801,6 +893,23 @@ const KEYBOARD_ROWS = [
   ]
 ];
 
+const HOME_ROW_KEYS = new Set(['a','s','d','f','g','h','j','k','l',';']);
+const BUMP_KEYS = new Set(['f','j']);
+
+// Refresher drill: alternating hands, starting with index fingers (the bumps)
+const REFRESHER_DRILL = [
+  { key: 'f', finger: 'left index finger', color: 'var(--finger-index-l)' },
+  { key: 'j', finger: 'right index finger', color: 'var(--finger-index-r)' },
+  { key: 'd', finger: 'left middle finger', color: 'var(--finger-mid-l)' },
+  { key: 'k', finger: 'right middle finger', color: 'var(--finger-mid-r)' },
+  { key: 's', finger: 'left ring finger', color: 'var(--finger-ring-l)' },
+  { key: 'l', finger: 'right ring finger', color: 'var(--finger-ring-r)' },
+  { key: 'a', finger: 'left pinky', color: 'var(--finger-pinky-l)' },
+  { key: 'f', finger: 'left index finger', color: 'var(--finger-index-l)' },
+  { key: 'j', finger: 'right index finger', color: 'var(--finger-index-r)' },
+  { key: 'a', finger: 'left pinky', color: 'var(--finger-pinky-l)' },
+];
+
 const FINGER_COLORS = {
   lp: 'var(--finger-pinky-l)',
   lr: 'var(--finger-ring-l)',
@@ -856,6 +965,11 @@ let roundState = {
 let tutorialStep = 0;
 let tutorialActive = false;
 
+// Refresher state
+let refresherStep = 0;
+let refresherActive = false;
+let refresherTargetZone = 0;
+
 // ========== SAVE/LOAD ==========
 
 function saveGame() {
@@ -910,6 +1024,7 @@ function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
   tutorialActive = (screenId === 'tutorial-screen');
+  refresherActive = (screenId === 'refresher-screen');
 
   if (screenId === 'zone-map') renderZoneMap();
   if (screenId === 'collection-screen') renderCollection();
@@ -1020,6 +1135,8 @@ function renderTutorialKeyboard() {
       keyEl.style.borderBottomColor = FINGER_COLORS[keyDef.finger];
       keyEl.style.borderBottomWidth = '3px';
       keyEl.style.borderBottomStyle = 'solid';
+      if (HOME_ROW_KEYS.has(keyDef.key)) keyEl.classList.add('home-row-key');
+      if (BUMP_KEYS.has(keyDef.key)) keyEl.classList.add('home-row-bump');
       rowEl.appendChild(keyEl);
     });
     container.appendChild(rowEl);
@@ -1150,6 +1267,156 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+// ========== HOME ROW REFRESHER ==========
+
+function startRefresher(zoneId) {
+  refresherTargetZone = zoneId;
+  refresherStep = 0;
+  refresherActive = true;
+  showScreen('refresher-screen');
+  renderRefresherKeyboard();
+  renderRefresherDots();
+  loadRefresherStep();
+}
+
+function skipRefresher() {
+  refresherActive = false;
+  startActualZone(refresherTargetZone);
+}
+
+function renderRefresherKeyboard() {
+  const container = document.getElementById('refresher-keyboard');
+  container.innerHTML = '';
+
+  KEYBOARD_ROWS.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'keyboard-row';
+    row.forEach(keyDef => {
+      const keyEl = document.createElement('div');
+      keyEl.className = `key ${keyDef.wide || ''}`;
+      keyEl.dataset.key = keyDef.key;
+      keyEl.id = `ref-key-${keyDef.key}`;
+      keyEl.textContent = keyDef.display || keyDef.key.toUpperCase();
+      keyEl.style.borderBottomColor = FINGER_COLORS[keyDef.finger];
+      keyEl.style.borderBottomWidth = '3px';
+      keyEl.style.borderBottomStyle = 'solid';
+      // Home row styling
+      if (HOME_ROW_KEYS.has(keyDef.key)) {
+        keyEl.classList.add('home-row-key');
+      }
+      if (BUMP_KEYS.has(keyDef.key)) {
+        keyEl.classList.add('home-row-bump');
+      }
+      rowEl.appendChild(keyEl);
+    });
+    container.appendChild(rowEl);
+  });
+}
+
+function renderRefresherDots() {
+  const container = document.getElementById('refresher-dots');
+  container.innerHTML = '';
+  for (let i = 0; i < REFRESHER_DRILL.length; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'refresher-dot';
+    dot.id = `ref-dot-${i}`;
+    container.appendChild(dot);
+  }
+}
+
+function loadRefresherStep() {
+  if (refresherStep >= REFRESHER_DRILL.length) {
+    finishRefresher();
+    return;
+  }
+
+  const step = REFRESHER_DRILL[refresherStep];
+
+  // Update prompt
+  document.getElementById('refresher-prompt').innerHTML =
+    `<span style="color:${step.color}">${step.key.toUpperCase()}</span>`;
+
+  // Finger hint
+  document.getElementById('refresher-finger-hint').innerHTML =
+    `<span style="color:${step.color}">${step.finger}</span>`;
+
+  document.getElementById('refresher-message').textContent = '';
+
+  // Update tip text based on progress
+  if (refresherStep === 0) {
+    document.getElementById('refresher-tip').innerHTML =
+      'Find the <strong>bumps on F and J</strong> with your index fingers.<br>That\'s how you know you\'re on the home row without looking!';
+  } else if (refresherStep === 2) {
+    document.getElementById('refresher-tip').innerHTML =
+      'Keep your index fingers on F and J. Reach with your <strong>other fingers</strong> without moving your hands.';
+  } else if (refresherStep === 6) {
+    document.getElementById('refresher-tip').innerHTML =
+      'Almost there! Your pinkies reach the <strong>outer keys</strong>.';
+  }
+
+  // Highlight key
+  document.querySelectorAll('#refresher-keyboard .key').forEach(k => {
+    k.classList.remove('highlight', 'correct-flash');
+  });
+  const targetKey = document.getElementById(`ref-key-${step.key}`);
+  if (targetKey) targetKey.classList.add('highlight');
+
+  // Update dots
+  for (let i = 0; i < REFRESHER_DRILL.length; i++) {
+    const dot = document.getElementById(`ref-dot-${i}`);
+    if (i < refresherStep) dot.className = 'refresher-dot done';
+    else if (i === refresherStep) dot.className = 'refresher-dot current';
+    else dot.className = 'refresher-dot';
+  }
+}
+
+function finishRefresher() {
+  refresherActive = false;
+  document.getElementById('refresher-prompt').textContent = '';
+  document.getElementById('refresher-finger-hint').textContent = '';
+  document.getElementById('refresher-tip').innerHTML = 'Fingers are set! Let\'s go!';
+  document.getElementById('refresher-message').textContent = '';
+
+  // Mark all dots done
+  for (let i = 0; i < REFRESHER_DRILL.length; i++) {
+    const dot = document.getElementById(`ref-dot-${i}`);
+    if (dot) dot.className = 'refresher-dot done';
+  }
+
+  // Auto-start the zone after a brief pause
+  setTimeout(() => startActualZone(refresherTargetZone), 600);
+}
+
+// Refresher key handler
+document.addEventListener('keydown', function(e) {
+  if (!refresherActive) return;
+  if (refresherStep >= REFRESHER_DRILL.length) return;
+
+  const step = REFRESHER_DRILL[refresherStep];
+  if (e.key === step.key) {
+    e.preventDefault();
+
+    // Flash correct
+    const keyEl = document.getElementById(`ref-key-${step.key}`);
+    if (keyEl) {
+      keyEl.classList.remove('highlight');
+      keyEl.classList.add('correct-flash');
+      setTimeout(() => keyEl.classList.remove('correct-flash'), 200);
+    }
+
+    const messages = ['', '', 'Nice!', '', 'Good!', '', '', 'Almost!', '', 'Ready!'];
+    document.getElementById('refresher-message').textContent = messages[refresherStep] || '';
+
+    refresherStep++;
+    setTimeout(() => loadRefresherStep(), 300);
+  } else if (/^[a-zA-Z]$/.test(e.key)) {
+    e.preventDefault();
+    document.getElementById('refresher-message').textContent = `That's ${e.key.toUpperCase()} -- press ${step.key.toUpperCase()}`;
+    document.getElementById('refresher-message').style.color = 'var(--error)';
+    setTimeout(() => { document.getElementById('refresher-message').style.color = ''; }, 800);
+  }
+});
+
 // ========== ZONE MAP ==========
 
 function renderZoneMap() {
@@ -1205,6 +1472,10 @@ function countCreatures() {
 // ========== GAME PLAY ==========
 
 function playZone(zoneId) {
+  startRefresher(zoneId);
+}
+
+function startActualZone(zoneId) {
   gameState.currentZone = zoneId;
   const zone = ZONES[zoneId];
 
@@ -1585,6 +1856,13 @@ function renderKeyboard() {
       keyEl.style.borderBottomColor = FINGER_COLORS[keyDef.finger];
       keyEl.style.borderBottomWidth = '3px';
       keyEl.style.borderBottomStyle = 'solid';
+      // Home row styling
+      if (HOME_ROW_KEYS.has(keyDef.key)) {
+        keyEl.classList.add('home-row-key');
+      }
+      if (BUMP_KEYS.has(keyDef.key)) {
+        keyEl.classList.add('home-row-bump');
+      }
       rowEl.appendChild(keyEl);
     });
 
